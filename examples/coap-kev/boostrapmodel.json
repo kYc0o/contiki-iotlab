@@ -1,0 +1,55 @@
+{
+    "eClass": "org.kevoree.ContainerRoot",
+    "nodes": [
+        {
+            "eClass": "org.kevoree.ContainerNode",
+            "name": "node0",
+            "typeDefinition": [
+                "typeDefinitions[CNode]"
+            ],
+            "groups": [
+                "groups[group0]"
+            ]
+        }
+    ],
+    "typeDefinitions": [
+        {
+            "eClass": "org.kevoree.NodeType",
+            "name": "CPPNode",
+            "deployUnits": [
+                "deployUnits[//kevoree-node-javascript/0.0.1]"
+            ],
+            "dictionaryType": [
+                {
+                    "eClass": "org.kevoree.DictionaryType",
+                    "generated_KMF_ID": "0.038991427980363371384853757435"
+                }
+            ]
+        },
+        {
+            "eClass": "org.kevoree.GroupType",
+            "name": "WebSocketGroup",
+            "deployUnits": [
+                "deployUnits[//kevoree-group-websocket/0.0.2]"
+            ]
+        }
+    ],
+    "groups": [
+        {
+            "eClass": "org.kevoree.Group",
+            "name": "group0",
+            "typeDefinition": [
+                "typeDefinitions[WebSocketGroup]"
+            ],
+            "subNodes": [
+                "nodes[node0]"
+            ],
+            "dictionary": [
+                {
+                    "eClass": "org.kevoree.Dictionary",
+                    "generated_KMF_ID": "0.068084515398368241385471097125"
+                }
+            ]
+        }
+    ]
+}

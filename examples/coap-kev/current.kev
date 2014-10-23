@@ -1,0 +1,1 @@
+node0:uKevoreeNode@{pin:period:serialport,DigitalLight:Timer:LocalChannel:SerialCT,on:off:toggle:flash:tick/1:L1:2/1:S1:3:2=devttyUSB0/1:T1:1:1=1000/1:D1:0:0=13/1:T2:1:1=1000/3:T1:L1:4/3:D1:L1:3/3:T2:S1:4/0:S1:2=39/}
