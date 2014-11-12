@@ -29,16 +29,24 @@
  *
  */
 
-#ifndef __PROJECT_ERBIUM_CONF_H__
-#define __PROJECT_ERBIUM_CONF_H__
+#ifndef PROJECT_ERBIUM_CONF_H_
+#define PROJECT_ERBIUM_CONF_H_
+
+/*#define RF2XX_CHANNEL 22
+#define RF2XX_TX_POWER  PHY_POWER_3dBm
+#define RF2XX_LEDS_ON*/
 
 /* Some platforms have weird includes. */
 /*#undef IEEE802154_CONF_PANID*/
 
 /* Disabling RDC for demo purposes. Core updates often require more memory. */
 /* For projects, optimize memory and enable RDC again. */
-#undef NETSTACK_CONF_RDC
-#define NETSTACK_CONF_RDC     nullrdc_driver
+/*#undef NETSTACK_CONF_RDC
+#define NETSTACK_CONF_RDC     nullrdc_driver*/
+
+/* Disabling TCP on CoAP nodes. */
+#undef UIP_CONF_TCP
+#define UIP_CONF_TCP           0
 
 /* Increase rpl-border-router IP-buffer when using more than 64. */
 #undef REST_MAX_CHUNK_SIZE
@@ -51,8 +59,9 @@
 */
 
 /* The IP buffer size must fit all other hops, in particular the border router. */
+
 #undef UIP_CONF_BUFFER_SIZE
-#define UIP_CONF_BUFFER_SIZE    240
+#define UIP_CONF_BUFFER_SIZE    180
 
 
 /* Multiplies with chunk size, be aware of memory constraints. */
@@ -72,16 +81,31 @@
 */
 
 /* Save some memory for the sky platform. */
-#undef NBR_TABLE_CONF_MAX_NEIGHBORS
+/*#undef NBR_TABLE_CONF_MAX_NEIGHBORS
 #define NBR_TABLE_CONF_MAX_NEIGHBORS     10
 #undef UIP_CONF_MAX_ROUTES
-#define UIP_CONF_MAX_ROUTES   10
+#define UIP_CONF_MAX_ROUTES   10*/
 
 /* Reduce 802.15.4 frame queue to save RAM. */
-#undef QUEUEBUF_CONF_NUM
-#define QUEUEBUF_CONF_NUM       4
+/*#undef QUEUEBUF_CONF_NUM
+#define QUEUEBUF_CONF_NUM       4*/
 
 #undef SICSLOWPAN_CONF_FRAG
 #define SICSLOWPAN_CONF_FRAG	1
 
-#endif /* __PROJECT_ERBIUM_CONF_H__ */
+#ifndef QUEUEBUF_CONF_NUM
+#define QUEUEBUF_CONF_NUM          4
+#endif
+
+/*#undef UIP_CONF_BUFFER_SIZE
+#define UIP_CONF_BUFFER_SIZE    240
+
+#ifndef UIP_CONF_RECEIVE_WINDOW
+#define UIP_CONF_RECEIVE_WINDOW  60
+#endif
+
+#ifndef WEBSERVER_CONF_CFS_CONNS
+#define WEBSERVER_CONF_CFS_CONNS 2
+#endif*/
+
+#endif /* PROJECT_ERBIUM_CONF_H_ */

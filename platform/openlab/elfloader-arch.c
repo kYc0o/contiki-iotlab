@@ -60,7 +60,7 @@ static uint8_t *datamemory = (uint8_t *) datamemory_aligned;
 /* halfword aligned
 VAR_AT_SEGMENT(static const uint16_t
                textmemory[ELFLOADER_TEXTMEMORY_SIZE / 2], ".elf_text") = {0};*/
-static const char textmemory[ELFLOADER_TEXTMEMORY_SIZE] = {0};
+static const uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE / 2] = {0};
 /*---------------------------------------------------------------------------*/
 void *
 elfloader_arch_allocate_ram(int size)
@@ -150,19 +150,19 @@ elfloader_arch_relocate(int fd,
 #endif
         }
       }
-      
+
       /* Adjust address for BLX */
       if((instr[1] & 0x1800) == 0x0800) {
         addr = (char *)((((uint32_t) addr) & 0xfffffffd) |
                 (((uint32_t) base) & 0x00000002));
       }
       offset = addr - (sectionaddr + (rela->r_offset + 4));
-      PRINTF("elfloader-arm.c: offset %d\n", (int)offset);
+      PRINTF("elfloader-arm.c: offset %d -> %u\n", (int)offset, (uint32_t)offset);
       if(offset < -(1 << 22) || offset >= (1 << 22)) {
         PRINTF("elfloader-arm.c: offset %d too large for relative call\n",
                (int)offset);
       }
-      /*   PRINTF("%p: %04x %04x  offset: %d addr: %p\n", sectionaddr +rela->r_offset, instr[0], instr[1], (int)offset, addr);  */
+      PRINTF("%p: %04x %04x  offset: %d addr: %p\n", sectionaddr +rela->r_offset, instr[0], instr[1], (int)offset, addr);
       instr[0] = (instr[0] & 0xf800) | ((offset >> 12) & 0x07ff);
       instr[1] = (instr[1] & 0xf800) | ((offset >> 1) & 0x07ff);
       cfs_write(fd, &instr, 4);
@@ -175,4 +175,14 @@ elfloader_arch_relocate(int fd,
     PRINTF("elfloader-arm.c: unsupported relocation type %d\n", type);
   }
 }
+/*void
+elfloader_arch_relocate(int fd, unsigned int sectionoffset,
+			char *sectionaddr,
+			struct elf32_rela *rela, char *addr)
+{
+  addr += rela->r_addend;
+
+  cfs_seek(fd, sectionoffset + rela->r_offset, CFS_SEEK_SET);
+  cfs_write(fd, (char *)&addr, 2);
+}*/
 /** @} */
