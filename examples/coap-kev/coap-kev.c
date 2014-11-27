@@ -739,8 +739,8 @@ putData_handler(void* request, void* response, uint8_t *buffer, uint16_t preferr
 
 				if(binLength == length)
 				{
-					printf("Binary transfer ended, loading started. \n");
-					printf("ELF module lenght = %ld\n", length);
+					printf("Binary transfer ended\n");/*, loading started. \n");*/
+					/*printf("ELF module lenght = %ld\n", length);
 
 					static int fd;
 					static int ret;
@@ -748,7 +748,7 @@ putData_handler(void* request, void* response, uint8_t *buffer, uint16_t preferr
 					fd = cfs_open(binName, CFS_READ);
 
 					if (fd != -1)
-					{
+					{*/
 						/*int i;
 						char bin[1270];
 
@@ -759,26 +759,26 @@ putData_handler(void* request, void* response, uint8_t *buffer, uint16_t preferr
 							printf("%2x", bin[i]);
 						}*/
 
-						/*elfloader_init();*/
+						/*elfloader_init();
 						ret = elfloader_load(fd);
 
 						if(ret == ELFLOADER_OK)
 						{
-							printf("Ok, starting new program.\n");
+							printf("Ok, starting new program.\n");*/
 							/* Start processes. */
-							autostart_start(elfloader_autostart_processes);
+							/*autostart_start(elfloader_autostart_processes);
 						}
 						else
 						{
 							printf("Error %d %s\n", ret, elfloader_unknown);
-						}
+						}*/
 
 						strAcc = length = length2 = 0;
 						*offset = -1;
 						large_update_size = 0;
 						large_update_ct = -1;
 						pref_size = 0;
-					}
+					/*}
 					else
 					{
 						printf("Cannot load module\n");
@@ -787,7 +787,7 @@ putData_handler(void* request, void* response, uint8_t *buffer, uint16_t preferr
 						large_update_size = 0;
 						large_update_ct = -1;
 						pref_size = 0;
-					}
+					}*/
 
 					/*fd_read = cfs_open(binName, CFS_READ);
 					length = cfs_seek(fd_read, 0 , CFS_SEEK_END);
