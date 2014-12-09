@@ -53,15 +53,25 @@
 #define R_ARM_THM_CALL	10
 #define ELFLOADER_CONF_TEXT_IN_ROM 1
 
+#if ELFLOADER_CONF_TEXT_IN_ROM
 /* Adapted from elfloader-arm.c */
 /* word aligned */
-static uint32_t datamemory_aligned[ELFLOADER_DATAMEMORY_SIZE/2+1];
+static uint32_t datamemory_aligned[(ELFLOADER_DATAMEMORY_SIZE + 3) / 4];
 static uint8_t *datamemory = (uint8_t *) datamemory_aligned;
+#else /* ELFLOADER_CONF_TEXT_IN_ROM */
+static uint16_t datamemory_aligned[ELFLOADER_DATAMEMORY_SIZE/2+1];
+static uint8_t* datamemory = (uint8_t *)datamemory_aligned;
+#endif /* ELFLOADER_CONF_TEXT_IN_ROM */
 
 /* halfword aligned
 VAR_AT_SEGMENT(static const uint16_t
-               textmemory[ELFLOADER_TEXTMEMORY_SIZE / 2], ".elf_text") = {0};*/
-static const uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE] = {0};
+               textmemory[ELFLOADER_TEXTMEMORY_SIZE / 2], ".elf_text") = {0};
+static const uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE] = {0};*/
+#if ELFLOADER_CONF_TEXT_IN_ROM
+static const uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE / 2] = {0};
+#else /* ELFLOADER_CONF_TEXT_IN_ROM */
+static uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE];
+#endif /* ELFLOADER_CONF_TEXT_IN_ROM */
 /*---------------------------------------------------------------------------*/
 void *
 elfloader_arch_allocate_ram(int size)
@@ -94,11 +104,19 @@ elfloader_arch_write_rom(int fd, unsigned short textoff, unsigned int size,
   int nbytes;
   cfs_seek(fd, textoff, CFS_SEEK_SET);
   cfs_seek(fd, textoff, CFS_SEEK_SET);
-  for(ptr = 0; ptr < size; ptr += READSIZE) {
     /* Read data from file into RAM. */
-    nbytes = cfs_read(fd, (unsigned char *)datamemory, READSIZE);
+  nbytes = cfs_read(fd, (unsigned char *)datamemory, READSIZE);
+  PRINTF("Bytes read: %d\n", nbytes);
+  flash_erase_memory_page((uint32_t)mem);
+  
+  for(ptr = 0; ptr < size; ptr += 2) {
+    uint16_t data;
+    data = datamemory[ptr + 1];
+    data = data << 8;
+    data |= datamemory[ptr];
     /* Write data to flash. */
-    flash_write_memory_half_word((uint32_t) mem, datamemory);/*, nbytes);*/
+    PRINTF("Writting %04X to %08X\n", data, (uint32_t)mem + ptr);
+    flash_write_memory_half_word((uint32_t) mem + ptr, data);
   }
 #else /* ELFLOADER_CONF_TEXT_IN_ROM */
   PRINTF("Using serial flash\n");
@@ -114,7 +132,7 @@ elfloader_arch_relocate(int fd,
                         struct elf32_rela *rela, char *addr)
 {
   PRINTF("File descriptor: %d\n", fd);
-  PRINTF("Section offset: %d\n", sectionoffset);
+  PRINTF("Section offset: %x\n", sectionoffset);
   PRINTF("Section address: %p\n", sectionaddr);
   PRINTF("rela->r_info: %08X\n", rela->r_info);
   PRINTF("rela->r_offset: %08X\n", rela->r_offset);
@@ -127,69 +145,76 @@ elfloader_arch_relocate(int fd,
   switch (type) {
   case R_ARM_ABS32:
     {
-      int32_t addend;
-      cfs_read(fd, (char *)&addend, 4);
-      addr += addend;
-      cfs_seek(fd, -4, CFS_SEEK_CUR);
-      cfs_write(fd, &addr, 4);
+      /*int32_t addend;
+      cfs_read(fd, (char *)&addend, sizeof(char*));
+      PRINTF("addend: %d, addr: %p\n", addend, addr);*/
+      PRINTF("addend: %x, addr: %p\n", rela->r_addend, addr);
+      /*addr += addend;*/
+      addr += rela->r_addend;
+      /*cfs_seek(fd, -sizeof(char*), CFS_SEEK_CUR);*/
+      cfs_write(fd, &addr, sizeof(char*));
       /* elfloader_output_write_segment(output,(char*) &addr, 4); */
-      PRINTF("%p: addr: %p\n", sectionaddr + rela->r_offset, addr);
+      PRINTF("sectionadd + rela->r_offset: %p, addr: %p\n", sectionaddr + rela->r_offset, addr);
     }
     break;
   case R_ARM_THM_CALL:
     {
       uint16_t instr[2];
-      int32_t offset;
-      char *base;
       cfs_read(fd, (char *)instr, 4);
+      uint32_t i, j;
+      int32_t addend;
+      int32_t final_offset;
+      i = instr[1];
+      j = instr[0];
+      j = j << 16;
+      i = i | j;
+      PRINTF("R_ARM_THM_CALL instruction: %x\n", i);
+      i = (i << 2) & 0x00FFFFFF;
+      if(i & 0x00800000)
+	i = i | 0xFF000000;
+      addend = (int32_t)i;
+      PRINTF("Initial addend is: %d\n", addend);   
+      
+      final_offset = (addr + addend) - (sectionaddr + rela->r_offset);
+      
+      PRINTF("Pre-Final offset: %d\n", final_offset);
+      
+      final_offset = final_offset >> 2;
+      
+      if(final_offset & 0x20000000)
+	final_offset &= 0x00FFFFFF;
+      
+      PRINTF("Final offset: %d\n", final_offset);
+      
+      i = (uint32_t)(final_offset & 0x0000FFFF);
+      j = (uint32_t)((final_offset & 0x00FF0000) >> 16);
+      
+      instr[1] = i;
+      instr[0] = instr[0] | (uint16_t)j;
+      
+      PRINTF("instr[0]: %x, instr[1]: %x\n", instr[0], instr[1]);
+      
       cfs_seek(fd, -4, CFS_SEEK_CUR);
-
-      /*
-       * Ignore the addend since it will be zero for calls to symbols,
-       * and I can't think of a case when doing a relative call to
-       * a non-symbol position
-       */
-      base = sectionaddr + (rela->r_offset + 4);
-      if(((instr[1]) & 0xe800) == 0xe800) {
-        /* BL or BLX */
-        if(((uint32_t) addr) & 0x1) {
-          /* BL */
-          instr[1] |= 0x1800;
-        } else {
-#if defined(__ARM_ARCH_4T__)
-          return ELFLOADER_UNHANDLED_RELOC;
-#else
-          /* BLX */
-          instr[1] &= ~0x1800;
-          instr[1] |= 0x0800;
-#endif
-        }
-      }
-
-      /* Adjust address for BLX */
-      if((instr[1] & 0x1800) == 0x0800) {
-        addr = (char *)((((uint32_t) addr) & 0xfffffffd) |
-                (((uint32_t) base) & 0x00000002));
-      }
-      offset = addr - (sectionaddr + (rela->r_offset + 4));
-      PRINTF("elfloader-arm.c: offset %d -> %u\n", (int)offset, (uint32_t)offset);
-      if(offset < -(1 << 22) || offset >= (1 << 22)) {
-        PRINTF("elfloader-arm.c: offset %d too large for relative call\n",
-               (int)offset);
-      }
-      PRINTF("%p: %04x %04x  offset: %d addr: %p\n", sectionaddr +rela->r_offset, instr[0], instr[1], (int)offset, addr);
-      instr[0] = (instr[0] & 0xf800) | ((offset >> 12) & 0x07ff);
-      instr[1] = (instr[1] & 0xf800) | ((offset >> 1) & 0x07ff);
-      PRINTF("instr[0]: %04X\ninstr[1]: %04X\n", instr[0], instr[1]);
       cfs_write(fd, &instr, 4);
-      /* elfloader_output_write_segment(output, (char*)instr, 4); */
-      /*     PRINTF("cfs_write: %04x %04x\n",instr[0], instr[1]); */
+      
+      
     }
     break;
 
   default:
     PRINTF("elfloader-arm.c: unsupported relocation type %d\n", type);
   }
+}
+
+void elfloader_arch_read_rom(int fd, unsigned short textoff, unsigned int size, char *mem)
+{
+  uint32_t ptr;
+  PRINTF("Size: %d, READSIZE: %d\n", size, READSIZE);
+  for(ptr = 0; ptr < size; ptr++) {
+    /* Read data from flash. */
+    printf("%02X", *mem + ptr);
+  }
+  printf("\n");
 }
 /*void
 elfloader_arch_relocate(int fd, unsigned int sectionoffset,
