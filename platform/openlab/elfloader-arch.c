@@ -51,16 +51,17 @@
 /* Supported relocations */
 #define R_ARM_ABS32	2
 #define R_ARM_THM_CALL	10
+#define ELFLOADER_CONF_TEXT_IN_ROM 1
 
 /* Adapted from elfloader-arm.c */
 /* word aligned */
-static uint32_t datamemory_aligned[(ELFLOADER_DATAMEMORY_SIZE + 3) / 4];
+static uint32_t datamemory_aligned[ELFLOADER_DATAMEMORY_SIZE/2+1];
 static uint8_t *datamemory = (uint8_t *) datamemory_aligned;
 
 /* halfword aligned
 VAR_AT_SEGMENT(static const uint16_t
                textmemory[ELFLOADER_TEXTMEMORY_SIZE / 2], ".elf_text") = {0};*/
-static const uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE / 2] = {0};
+static const uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE] = {0};
 /*---------------------------------------------------------------------------*/
 void *
 elfloader_arch_allocate_ram(int size)
@@ -68,6 +69,7 @@ elfloader_arch_allocate_ram(int size)
   if(size > sizeof(datamemory_aligned)) {
     PRINTF("RESERVED RAM TOO SMALL\n");
   }
+  PRINTF("Allocated RAM: %p\n", datamemory);
   return datamemory;
 }
 /*---------------------------------------------------------------------------*/
@@ -77,6 +79,7 @@ elfloader_arch_allocate_rom(int size)
   if(size > sizeof(textmemory)) {
     PRINTF("RESERVED FLASH TOO SMALL\n");
   }
+  PRINTF("Allocated ROM: %p\n", textmemory);
   return (void *)textmemory;
 }
 /*---------------------------------------------------------------------------*/
@@ -86,6 +89,7 @@ void
 elfloader_arch_write_rom(int fd, unsigned short textoff, unsigned int size,
                          char *mem)
 {
+#if ELFLOADER_CONF_TEXT_IN_ROM
   uint32_t ptr;
   int nbytes;
   cfs_seek(fd, textoff, CFS_SEEK_SET);
@@ -96,6 +100,11 @@ elfloader_arch_write_rom(int fd, unsigned short textoff, unsigned int size,
     /* Write data to flash. */
     flash_write_memory_half_word((uint32_t) mem, datamemory);/*, nbytes);*/
   }
+#else /* ELFLOADER_CONF_TEXT_IN_ROM */
+  PRINTF("Using serial flash\n");
+  cfs_seek(fd, textoff, CFS_SEEK_SET);
+  cfs_read(fd, (unsigned char *)mem, size);
+#endif /* ELFLOADER_CONF_TEXT_IN_ROM */
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -104,6 +113,12 @@ elfloader_arch_relocate(int fd,
                         char *sectionaddr,
                         struct elf32_rela *rela, char *addr)
 {
+  PRINTF("File descriptor: %d\n", fd);
+  PRINTF("Section offset: %d\n", sectionoffset);
+  PRINTF("Section address: %p\n", sectionaddr);
+  PRINTF("rela->r_info: %08X\n", rela->r_info);
+  PRINTF("rela->r_offset: %08X\n", rela->r_offset);
+  PRINTF("Address: %p\n", addr);
   unsigned int type;
   type = ELF32_R_TYPE(rela->r_info);
   cfs_seek(fd, sectionoffset + rela->r_offset, CFS_SEEK_SET);
@@ -165,6 +180,7 @@ elfloader_arch_relocate(int fd,
       PRINTF("%p: %04x %04x  offset: %d addr: %p\n", sectionaddr +rela->r_offset, instr[0], instr[1], (int)offset, addr);
       instr[0] = (instr[0] & 0xf800) | ((offset >> 12) & 0x07ff);
       instr[1] = (instr[1] & 0xf800) | ((offset >> 1) & 0x07ff);
+      PRINTF("instr[0]: %04X\ninstr[1]: %04X\n", instr[0], instr[1]);
       cfs_write(fd, &instr, 4);
       /* elfloader_output_write_segment(output, (char*)instr, 4); */
       /*     PRINTF("cfs_write: %04x %04x\n",instr[0], instr[1]); */
