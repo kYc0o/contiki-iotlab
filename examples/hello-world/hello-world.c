@@ -40,6 +40,9 @@
 #include "contiki.h"
 
 #include <stdio.h> /* For printf() */
+
+typedef void (*f) (const char*);
+
 /*---------------------------------------------------------------------------*/
 PROCESS(hello_world_process, "Hello world process");
 AUTOSTART_PROCESSES(&hello_world_process);
@@ -48,7 +51,12 @@ PROCESS_THREAD(hello_world_process, ev, data)
 {
   PROCESS_BEGIN();
 
-  printf("Hello, world\n");
+  f x = (f)(0x80089a9);
+
+  x("Hello, world!\n");
+  printf("Hello, sonia!\n");
+
+/*  printf("Hello, world\n");*/
   
   PROCESS_END();
 }

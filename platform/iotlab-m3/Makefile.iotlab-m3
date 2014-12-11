@@ -203,7 +203,7 @@ CUSTOM_RULE_C_TO_CE = 1
 %.ce: %.c
 	$(CC) $(CFLAGS) -DAUTOSTART_ENABLE -c $< -o $@
 	$(STRIP) --strip-unneeded -g -x $@
-#	arm-none-eabi-ld -r -T $(OPENLAB_GIT)/platform/scripts/merge-segments.ld $<e -o $@
+#	arm-none-eabi-ld -r -T $(OPENLAB_GIT)/platform/scripts/merge-segments.ld $< -o $@
 ##
 ##
 

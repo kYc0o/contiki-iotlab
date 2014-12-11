@@ -179,8 +179,8 @@ typedef unsigned int uip_stats_t;
 #define UIP_CONF_LL_802154          1
 #define UIP_CONF_LLH_LEN            0
 #define UIP_CONF_UDP                1
-#define UIP_CONF_TCP                0
-
+/*#define UIP_CONF_TCP                0
+*/
 
 /* IPv6 configuration */
 #if WITH_UIP6

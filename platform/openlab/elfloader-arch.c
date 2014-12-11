@@ -68,7 +68,9 @@ VAR_AT_SEGMENT(static const uint16_t
                textmemory[ELFLOADER_TEXTMEMORY_SIZE / 2], ".elf_text") = {0};
 static const uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE] = {0};*/
 #if ELFLOADER_CONF_TEXT_IN_ROM
-static const uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE / 2] = {0};
+/*static const uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE / 2] = {0};*/
+static const uint16_t textmemory[8096] = {0};
+/*static uint32_t basePtr = (((uint32_t)textmemory) & (~((uint32_t)2047))) + 2048;*/
 #else /* ELFLOADER_CONF_TEXT_IN_ROM */
 static uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE];
 #endif /* ELFLOADER_CONF_TEXT_IN_ROM */
@@ -86,11 +88,13 @@ elfloader_arch_allocate_ram(int size)
 void *
 elfloader_arch_allocate_rom(int size)
 {
+  uint32_t basePtr = (((uint32_t)textmemory) & (~((uint32_t)2047))) + 2048;
   if(size > sizeof(textmemory)) {
     PRINTF("RESERVED FLASH TOO SMALL\n");
   }
   PRINTF("Allocated ROM: %p\n", textmemory);
-  return (void *)textmemory;
+  /*return (void *)textmemory;*/
+  return basePtr;
 }
 /*---------------------------------------------------------------------------*/
 #define READSIZE sizeof(datamemory_aligned)
@@ -100,6 +104,7 @@ elfloader_arch_write_rom(int fd, unsigned short textoff, unsigned int size,
                          char *mem)
 {
 #if ELFLOADER_CONF_TEXT_IN_ROM
+  uint32_t basePtr = (((uint32_t)textmemory) & (~((uint32_t)2047))) + 2048;
   uint32_t ptr;
   int nbytes;
   cfs_seek(fd, textoff, CFS_SEEK_SET);
@@ -118,6 +123,13 @@ elfloader_arch_write_rom(int fd, unsigned short textoff, unsigned int size,
     PRINTF("Writting %04X to %08X\n", data, (uint32_t)mem + ptr);
     flash_write_memory_half_word((uint32_t) mem + ptr, data);
   }
+  
+  for(ptr = 0; ptr < size; ptr += 2)
+  {
+    uint16_t *data = mem + ptr;
+    PRINTF("%04X at %p\n", *data, data);
+  }
+  PRINTF("\n");
 #else /* ELFLOADER_CONF_TEXT_IN_ROM */
   PRINTF("Using serial flash\n");
   cfs_seek(fd, textoff, CFS_SEEK_SET);
@@ -175,7 +187,7 @@ elfloader_arch_relocate(int fd,
       addend = (int32_t)i;
       PRINTF("Initial addend is: %d\n", addend);   
       
-      final_offset = (addr + addend) - (sectionaddr + rela->r_offset);
+      final_offset = (addr + addend) - (sectionaddr + rela->r_offset + 8);
       
       PRINTF("Pre-Final offset: %d\n", final_offset);
       
