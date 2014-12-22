@@ -39,7 +39,7 @@
 #include "cfs-coffee-arch.h"
 #include "drivers/stm32f1xx/flash.h"
 
-#if 1
+#if 0
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
 #else
@@ -68,11 +68,10 @@ VAR_AT_SEGMENT(static const uint16_t
                textmemory[ELFLOADER_TEXTMEMORY_SIZE / 2], ".elf_text") = {0};
 static const uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE] = {0};*/
 #if ELFLOADER_CONF_TEXT_IN_ROM
-/*static const uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE / 2] = {0};*/
-static const uint16_t textmemory[8096] = {0};
-/*static uint32_t basePtr = (((uint32_t)textmemory) & (~((uint32_t)2047))) + 2048;*/
+static const uint16_t textmemory[8096]  __attribute__((aligned(2048))) = {0};
+static uint32_t basePtr = 0;
 #else /* ELFLOADER_CONF_TEXT_IN_ROM */
-static uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE];
+//static uint16_t textmemory[ELFLOADER_TEXTMEMORY_SIZE];
 #endif /* ELFLOADER_CONF_TEXT_IN_ROM */
 /*---------------------------------------------------------------------------*/
 void *
@@ -88,13 +87,16 @@ elfloader_arch_allocate_ram(int size)
 void *
 elfloader_arch_allocate_rom(int size)
 {
-  uint32_t basePtr = (((uint32_t)textmemory) & (~((uint32_t)2047))) + 2048;
-  if(size > sizeof(textmemory)) {
+  if (!basePtr)
+  	basePtr = (((uint32_t)textmemory) & (~((uint32_t)2047))) + 2048;
+
+  if(size > ((uint32_t)textmemory - basePtr)) {
     PRINTF("RESERVED FLASH TOO SMALL\n");
   }
-  PRINTF("Allocated ROM: %p\n", textmemory);
-  /*return (void *)textmemory;*/
-  return basePtr;
+  PRINTF("Allocated ROM: %p\n", (void*)basePtr);
+  void* tmp = (void *)basePtr;
+  basePtr += FLASH_SIZE_PAGE;
+  return tmp;
 }
 /*---------------------------------------------------------------------------*/
 #define READSIZE sizeof(datamemory_aligned)
@@ -104,7 +106,6 @@ elfloader_arch_write_rom(int fd, unsigned short textoff, unsigned int size,
                          char *mem)
 {
 #if ELFLOADER_CONF_TEXT_IN_ROM
-  uint32_t basePtr = (((uint32_t)textmemory) & (~((uint32_t)2047))) + 2048;
   uint32_t ptr;
   int nbytes;
   cfs_seek(fd, textoff, CFS_SEEK_SET);
@@ -120,16 +121,14 @@ elfloader_arch_write_rom(int fd, unsigned short textoff, unsigned int size,
     data = data << 8;
     data |= datamemory[ptr];
     /* Write data to flash. */
-    PRINTF("Writting %04X to %08X\n", data, (uint32_t)mem + ptr);
+    //PRINTF("Writing %x to %x\n", data, (uint32_t)mem + ptr);
     flash_write_memory_half_word((uint32_t) mem + ptr, data);
   }
-  
-  for(ptr = 0; ptr < size; ptr += 2)
-  {
-    uint16_t *data = mem + ptr;
-    PRINTF("%04X at %p\n", *data, data);
+  for(ptr = 0; ptr < size; ptr += 2) {
+    uint16_t* data = (uint16_t*)(mem + ptr);
+    /* Write data to flash. */
+    //PRINTF("Reading %x to %p\n", *data, data);
   }
-  PRINTF("\n");
 #else /* ELFLOADER_CONF_TEXT_IN_ROM */
   PRINTF("Using serial flash\n");
   cfs_seek(fd, textoff, CFS_SEEK_SET);
@@ -143,7 +142,6 @@ elfloader_arch_relocate(int fd,
                         char *sectionaddr,
                         struct elf32_rela *rela, char *addr)
 {
-  PRINTF("File descriptor: %d\n", fd);
   PRINTF("Section offset: %x\n", sectionoffset);
   PRINTF("Section address: %p\n", sectionaddr);
   PRINTF("rela->r_info: %08X\n", rela->r_info);
@@ -174,37 +172,79 @@ elfloader_arch_relocate(int fd,
       uint16_t instr[2];
       cfs_read(fd, (char *)instr, 4);
       uint32_t i, j;
-      int32_t addend;
-      int32_t final_offset;
+      int32_t addend, tmpAddr;
+      int32_t final_offset, offset;
       i = instr[1];
       j = instr[0];
       j = j << 16;
       i = i | j;
       PRINTF("R_ARM_THM_CALL instruction: %x\n", i);
-      i = (i << 2) & 0x00FFFFFF;
-      if(i & 0x00800000)
-	i = i | 0xFF000000;
+      
+	  i = (i << 2) & 0x00FFFFFF;
+      if((i & 0x00800000)!=0) i = i | 0xFF000000;
       addend = (int32_t)i;
-      PRINTF("Initial addend is: %d\n", addend);   
+     
+	  PRINTF("\tAddend : %lx (%ld)\n", addend, addend);
+      PRINTF("\tJump target (calculated by Contiki) : %lx\n", addr);
+      PRINTF("\tJump target (real) : %p\n", &printf);
+      PRINTF("\tSection address : %lx\n", sectionaddr);
+      PRINTF("\tProgram Counter (PC) : %lx\n", sectionaddr + rela->r_offset);
+	  PRINTF("\tProgram Counter + 8 (PC) : %lx\n", sectionaddr + rela->r_offset + 8);
+
+	  tmpAddr = (uint32_t)addr;
+      if ((tmpAddr & 0x1) != 0)
+		tmpAddr = tmpAddr & (~1); // remove last bit if set
+
+	  offset = tmpAddr - ((uint32_t)sectionaddr + rela->r_offset);
+	  offset -= 4; // the adjusment for Thumb instructions
+
+	  PRINTF("\tCalculated offset (%ld): %lx\n", offset, offset);
+
+	  // keep 11 bits
+	  j = offset & 0x007FFFFF;
+	  j >>= 12;
+	  PRINTF("\tThe first half is %lx\n", j);
+      i = offset & 0x00000FFF;
+	  i >>= 1; 
+      PRINTF("\tThe second half is %lx\n", i);
+
+      /*// get the addend
+	  i = (i << 2) & 0x00FFFFFF;
+      if((i & 0x00800000)!=0) i = i | 0xFF000000;
+      addend = (int32_t)i;
+     
+	  printf("\tAddend : %lx (%ld)\n", addend, addend);
+      printf("\tJump target (calculated by Contiki) : %lx\n", addr);
+      printf("\tJump target (real) : %p\n", &printf);
+      printf("\tSection address : %lx\n", sectionaddr);
+      printf("\tProgram Counter (PC) : %lx\n", sectionaddr + rela->r_offset);
+	  printf("\tProgram Counter + 8 (PC) : %lx\n", sectionaddr + rela->r_offset + 8);
+     
+      uint32_t offset = (addr) - (sectionaddr + rela->r_offset + 8);
+	  printf("\tCalculated offset (%ld): %lx\n", offset, offset);
       
-      final_offset = (addr + addend) - (sectionaddr + rela->r_offset + 8);
       
-      PRINTF("Pre-Final offset: %d\n", final_offset);
+      final_offset = offset >> 2;
       
-      final_offset = final_offset >> 2;
+      if((final_offset & 0x20000000)!=0) {
+		printf("\tIt is a negative offset\n"); 
+		final_offset &= 0x00FFFFFF;
+	  }
       
-      if(final_offset & 0x20000000)
-	final_offset &= 0x00FFFFFF;
-      
-      PRINTF("Final offset: %d\n", final_offset);
+      printf("\tFinal offset: %lx\n", final_offset);
       
       i = (uint32_t)(final_offset & 0x0000FFFF);
       j = (uint32_t)((final_offset & 0x00FF0000) >> 16);
+      */
+
+
       
-      instr[1] = i;
-      instr[0] = instr[0] | (uint16_t)j;
+      instr[1] = (instr[1] & 0xF800) | (uint16_t)(i);
+
+
+      instr[0] = (instr[0] & 0xF800) | (uint16_t)j;
       
-      PRINTF("instr[0]: %x, instr[1]: %x\n", instr[0], instr[1]);
+      PRINTF("\tinstr[0]: %x, instr[1]: %x\n", instr[0], instr[1]);
       
       cfs_seek(fd, -4, CFS_SEEK_CUR);
       cfs_write(fd, &instr, 4);
@@ -224,9 +264,9 @@ void elfloader_arch_read_rom(int fd, unsigned short textoff, unsigned int size, 
   PRINTF("Size: %d, READSIZE: %d\n", size, READSIZE);
   for(ptr = 0; ptr < size; ptr++) {
     /* Read data from flash. */
-    printf("%02X", *mem + ptr);
+    PRINTF("%02X", *mem + ptr);
   }
-  printf("\n");
+  PRINTF("\n");
 }
 /*void
 elfloader_arch_relocate(int fd, unsigned int sectionoffset,

@@ -42,7 +42,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -150,8 +150,7 @@ seek_read(int fd, unsigned int offset, char *buf, int len)
 {
   cfs_seek(fd, offset, CFS_SEEK_SET);
   cfs_read(fd, buf, len);
-/*#if DEBUG*/
-#if 0
+#if DEBUG
   {
     int i;
     PRINTF("seek_read: Read len %d from offset %d\n",
@@ -180,7 +179,7 @@ find_local_symbol(int fd, const char *symbol,
 {
   struct elf32_sym s;
   unsigned int a;
-  char name[30];
+  char name[60];
   struct relevant_section *sect;
   
   for(a = symtab; a < symtab + symtabsize; a += sizeof(s)) {
@@ -189,18 +188,18 @@ find_local_symbol(int fd, const char *symbol,
     if(s.st_name != 0) {
       seek_read(fd, strtab + s.st_name, name, sizeof(name));
       if(strcmp(name, symbol) == 0) {
-	if(s.st_shndx == bss.number) {
-	  sect = &bss;
-	} else if(s.st_shndx == data.number) {
-	  sect = &data;
-  } else if(s.st_shndx == rodata.number) {
-    sect = &rodata;
-	} else if(s.st_shndx == text.number) {
-	  sect = &text;
-	} else {
-	  return NULL;
-	}
-	return &(sect->address[s.st_value]);
+		if(s.st_shndx == bss.number) {
+			sect = &bss;
+		} else if(s.st_shndx == data.number) {
+	  		sect = &data;
+  		} else if(s.st_shndx == rodata.number) {
+    		sect = &rodata;
+		} else if(s.st_shndx == text.number) {
+	  		sect = &text;
+		} else {
+	  		return NULL;
+		}
+		return &(sect->address[s.st_value]);
       }
     }
   }
@@ -222,7 +221,7 @@ relocate_section(int fd,
   int rel_size = 0;
   struct elf32_sym s;
   unsigned int a;
-  char name[30];
+  char name[60];
   char *addr;
   struct relevant_section *sect;
 
@@ -244,40 +243,40 @@ relocate_section(int fd,
       addr = (char *)symtab_lookup(name);
       /* ADDED */
       if(addr == NULL) {
-	PRINTF("name not found in global: %s\n", name);
-	addr = find_local_symbol(fd, name, symtab, symtabsize, strtab);
-	PRINTF("found address %p\n", addr);
+	  	PRINTF("name not found in global: %s\n", name);
+	  	addr = find_local_symbol(fd, name, symtab, symtabsize, strtab);
+	  	PRINTF("found address %p\n", addr);
       }
       if(addr == NULL) {
-	if(s.st_shndx == bss.number) {
-	  sect = &bss;
-	} else if(s.st_shndx == data.number) {
-	  sect = &data;
-	} else if(s.st_shndx == rodata.number) {
-	  sect = &rodata;
-	} else if(s.st_shndx == text.number) {
-	  sect = &text;
+		if(s.st_shndx == bss.number) {
+		  sect = &bss;
+		} else if(s.st_shndx == data.number) {
+		  sect = &data;
+		} else if(s.st_shndx == rodata.number) {
+		  sect = &rodata;
+		} else if(s.st_shndx == text.number) {
+		  sect = &text;
+		} else {
+		  PRINTF("elfloader unknown name: '%30s'\n", name);
+		  memcpy(elfloader_unknown, name, sizeof(elfloader_unknown));
+		  elfloader_unknown[sizeof(elfloader_unknown) - 1] = 0;
+		  return ELFLOADER_SYMBOL_NOT_FOUND;
+		}
+		printf("\t\tUsing this path to find addr for %s\n", name);
+		addr = sect->address;
+	  }
 	} else {
-	  PRINTF("elfloader unknown name: '%30s'\n", name);
-	  memcpy(elfloader_unknown, name, sizeof(elfloader_unknown));
-	  elfloader_unknown[sizeof(elfloader_unknown) - 1] = 0;
-	  return ELFLOADER_SYMBOL_NOT_FOUND;
-	}
-	addr = sect->address;
+	  if(s.st_shndx == bss.number) {
+		sect = &bss;
+	  } else if(s.st_shndx == data.number) {
+		sect = &data;
+	  } else if(s.st_shndx == rodata.number) {
+		sect = &rodata;
+	  } else if(s.st_shndx == text.number) {
+		sect = &text;
+	  } else {
+		return ELFLOADER_SEGMENT_NOT_FOUND;
       }
-    } else {
-      if(s.st_shndx == bss.number) {
-	sect = &bss;
-      } else if(s.st_shndx == data.number) {
-	sect = &data;
-      } else if(s.st_shndx == rodata.number) {
-	sect = &rodata;
-      } else if(s.st_shndx == text.number) {
-	sect = &text;
-      } else {
-	return ELFLOADER_SEGMENT_NOT_FOUND;
-      }
-      
       addr = sect->address;
     }
 
@@ -573,10 +572,21 @@ elfloader_load(int fd)
   memset(bss.address, 0, bsssize);
   seek_read(fd, dataoff, data.address, datasize);
 
+  // show data
+/*
+  uint16_t* roBegin = (uint16_t*)text.address;
+  uint16_t* roEnd = (uint16_t*)(rodata.address + rodatasize);
+  while (roBegin < roEnd) {
+		printf("\tValue at %p is %x\n", roBegin, *roBegin);
+		roBegin++;
+  }
+*/
+
   PRINTF("elfloader: autostart search\n");
   process = (struct process **) find_local_symbol(fd, "autostart_processes", symtaboff, symtabsize, strtaboff);
   if(process != NULL) {
     PRINTF("elfloader: autostart found\n");
+	//printf("The process is here, at address %p, the thread at %p\n", process[0], process[0]->thread);
     elfloader_autostart_processes = process;
     return ELFLOADER_OK;
   } else {

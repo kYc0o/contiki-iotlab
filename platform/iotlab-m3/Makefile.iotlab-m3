@@ -45,7 +45,7 @@ DEFINES=ELFLOADER_DATAMEMORY_SIZE=0x800,ELFLOADER_TEXTMEMORY_SIZE=0x800
 #endif
 
 DEBUG            = 1
-CFLAGS          += -DIOTLAB_M3 -DKEEP_UART=1 -DENABLE_DEBUG=0
+CFLAGS          += -DIOTLAB_M3 -DKEEP_UART=1 -DENABLE_DEBUG=1
 LINKERSCRIPT     = $(OPENLAB_GIT)/platform/scripts/stm32f103rey6.ld
 
 OOCD_TARGET      = stm32f1x
@@ -64,7 +64,8 @@ OPENLAB_INCLUDE_PATH += \
 	-I$(OPENLAB_GIT)	                \
 	-I$(OPENLAB_GIT)/drivers/cortex-m3	\
 	-I$(OPENLAB_GIT)/drivers/stm32		\
-	-I$(OPENLAB_GIT)/drivers/stm32f1xx
+	-I$(OPENLAB_GIT)/drivers/stm32f1xx	\
+	-I$(OPENLAB_GIT)/drivers
 
 OPENLAB_TARGET_DIRS  += . 			\
 	$(OPENLAB_REL)				\
@@ -137,13 +138,12 @@ OPENLAB_CONTIKI_WRAPPERS +=			\
 	acc-mag-sensor.c   \
 	pressure-sensor.c  \
 	gyr-sensor.c       \
-	fake-button-sensor.c	\
-	xmem.c
+	fake-button-sensor.c
 
 ifndef CONTIKI_TARGET_MAIN
 CONTIKI_TARGET_MAIN += openlab-main.c
 endif
-CLEAN += *.iotlab-m3
+
 ##
 ## Contiki apps and drivers
 ##
@@ -152,7 +152,13 @@ CONTIKI_SRC += 					\
 	leds.c 					\
 	sensors.c				\
 	slip.c					\
-	cfs-coffee.c				\
+	xmem.c					\
+	cfs-coffee.c			\
+	elfloader.c				\
+	elfloader-arch.c		
+
+#	symtab.c				\
+
 
 ##
 ## Full source setup
@@ -165,7 +171,7 @@ CONTIKI_TARGET_SOURCEFILES +=  			\
 	$(OPENLAB_CONTIKI_WRAPPERS)		\
 	$(ELFLOADER)				\
 	$(CONTIKI_SRC)                          \
-	$(CONTIKI_TARGET_MAIN)			
+	$(CONTIKI_TARGET_MAIN)					
 
 CONTIKI_SOURCEFILES += $(CONTIKI_TARGET_SOURCEFILES)
 
@@ -196,14 +202,26 @@ endif
 CUSTOM_RULE_C_TO_OBJECTDIR_O = "defined"
 $(OBJECTDIR)/%.o: %.c
 	@$(OPENLAB_OBJECTDIR)
+	@echo "feo"
+	@echo $(OPENLAB_INCLUDE_PATH)
+	@echo "fin de feo"
 	$(CC) $(CFLAGS) $(OPENLAB_INCLUDE_PATH) -MMD -c $< -o $@
 	@$(FINALIZE_DEPENDENCY)
 
-CUSTOM_RULE_C_TO_CE = 1
+OTHER_CFLAGS := $(filter-out -ffunction-sections,$(CFLAGS))
+
+CUSTOM_RULE_C_TO_CE = defined
 %.ce: %.c
-	$(CC) $(CFLAGS) -DAUTOSTART_ENABLE -c $< -o $@
+	@echo $(CFLAGS)
+	@echo $(filter-out -ffunction-sections,$(filter-out -fdata-sections,$(CFLAGS)))
+	$(TRACE_CC)
+#-mlong-calls
+	$(Q)$(CC) $(CFLAGS) -DAUTOSTART_ENABLE -c $< -o $@
+	arm-none-eabi-ld -r -T $(OPENLAB_GIT)/platform/scripts/merge-segments.ld -o $@.xxx $@
 	$(STRIP) --strip-unneeded -g -x $@
-#	arm-none-eabi-ld -r -T $(OPENLAB_GIT)/platform/scripts/merge-segments.ld $< -o $@
+	$(STRIP) --strip-unneeded -g -x $@.xxx
+
+##
 ##
 ##
 
