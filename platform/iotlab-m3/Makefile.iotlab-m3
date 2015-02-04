@@ -202,9 +202,7 @@ endif
 CUSTOM_RULE_C_TO_OBJECTDIR_O = "defined"
 $(OBJECTDIR)/%.o: %.c
 	@$(OPENLAB_OBJECTDIR)
-	@echo "feo"
 	@echo $(OPENLAB_INCLUDE_PATH)
-	@echo "fin de feo"
 	$(CC) $(CFLAGS) $(OPENLAB_INCLUDE_PATH) -MMD -c $< -o $@
 	@$(FINALIZE_DEPENDENCY)
 
