@@ -17,6 +17,7 @@
  * Parameters definitions
  */
 static struct etimer timer;
+int count = 0;
 /*------------------------------------------------------------------------*/
 PROCESS(hw_instances, "kev_contiki//hello_world/0.0.1");
 PROCESS(hw_component, "HelloWorldComponent");
@@ -140,8 +141,7 @@ void HelloWorldComponentPoly_update(AbstractTypeDefinition * const this, int tim
 
 void delete_HelloWorldComponent(HelloWorldComponent * const this)
 {
-	if(this != NULL)
-	{
+	if (this != NULL) {
 		free(this);
 	}
 }
@@ -212,21 +212,13 @@ PROCESS_THREAD(hw_instances, ev, data)
 	uint32_t *pointerData;
 
 	PROCESS_BEGIN();
-
-	printf("Starting hello-world-component process\n");
-
+	printf("Starting hw_instance process\n");
 	while (1) {
 		PROCESS_WAIT_EVENT();
-
-		if(ev == PROCESS_EVENT_POLL)
-		{
-			printf("Polling hello-world-component!\n");
-			printf("Receiving pointer %p\n", data);
+		if (ev == PROCESS_EVENT_POLL) {
 			pointerData = (uint32_t*)data;
 			*pointerData = (uint32_t*)newPoly_HelloWorldComponent();
-			printf("Sending pointers %p %p\n", data, pointerData);
 		}
-
 	}
 
 	PROCESS_END();
@@ -242,6 +234,5 @@ PROCESS_THREAD(hw_component, ev, data)
 			etimer_restart(&timer);
 		}
 	}
-
 	PROCESS_END();
 }
