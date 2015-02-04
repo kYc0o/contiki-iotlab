@@ -217,7 +217,7 @@ PROCESS_THREAD(hw_instances, ev, data)
 		PROCESS_WAIT_EVENT();
 		if (ev == PROCESS_EVENT_POLL) {
 			pointerData = (uint32_t*)data;
-			*pointerData = (uint32_t*)newPoly_HelloWorldComponent();
+			*pointerData = (uint32_t)newPoly_HelloWorldComponent();
 		}
 	}
 
