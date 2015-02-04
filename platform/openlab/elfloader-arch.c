@@ -51,6 +51,7 @@
 /* Supported relocations */
 #define R_ARM_ABS32	2
 #define R_ARM_THM_CALL	10
+#define R_ARM_THM_JUMP24 30
 #define ELFLOADER_CONF_TEXT_IN_ROM 1
 
 #if ELFLOADER_CONF_TEXT_IN_ROM
@@ -168,6 +169,7 @@ elfloader_arch_relocate(int fd,
     }
     break;
   case R_ARM_THM_CALL:
+  case R_ARM_THM_JUMP24:
     {
       uint16_t instr[2];
       cfs_read(fd, (char *)instr, 4);
