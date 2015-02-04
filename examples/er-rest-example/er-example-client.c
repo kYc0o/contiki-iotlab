@@ -45,6 +45,7 @@
 
 #include "dev/button-sensor.h"
 
+/*
 #if WITH_COAP == 3
 #include "er-coap-03-engine.h"
 #elif WITH_COAP == 6
@@ -54,13 +55,15 @@
 #elif WITH_COAP == 12
 #include "er-coap-12-engine.h"
 #elif WITH_COAP == 13
+*/
 #include "er-coap-13-engine.h"
+/*
 #else
 #error "CoAP version defined by WITH_COAP not implemented"
 #endif
+*/
 
-
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
@@ -72,7 +75,8 @@
 #endif
 
 /* TODO: This server address is hard-coded for Cooja. */
-#define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xaaaa, 0, 0, 0, 0x0212, 0x7402, 0x0002, 0x0202) /* cooja2 */
+/*#define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xaaaa, 0, 0, 0, 0x0212, 0x7402, 0x0002, 0x0202)  cooja2 */
+#define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xbbbb, 0, 0, 0, 0, 0, 0, 0x1)
 
 #define LOCAL_PORT      UIP_HTONS(COAP_DEFAULT_PORT+1)
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
@@ -89,10 +93,32 @@ static struct etimer et;
 /* Example URIs that can be queried. */
 #define NUMBER_OF_URLS 4
 /* leading and ending slashes only for demo purposes, get cropped automatically when setting the Uri-Path */
-char* service_urls[NUMBER_OF_URLS] = {".well-known/core", "/actuators/toggle", "battery/", "error/in//path"};
+/*char* service_urls[NUMBER_OF_URLS] = {".well-known/core", "/actuators/toggle", "battery/", "error/in//path"};*/
+char* service_urls[NUMBER_OF_URLS] = {".well-known/core", "CoAPKev", "error/in//path"};
 #if PLATFORM_HAS_BUTTON
 static int uri_switch = 0;
 #endif
+
+/* For printing ipv6 address in DEBUG=1*/
+static void
+print_local_addresses(void)
+{
+	int i;
+	uint8_t state;
+
+	PRINTF("Server IPv6 addresses: \n");
+
+	for(i = 0; i < UIP_DS6_ADDR_NB; i++)
+	{
+		state = uip_ds6_if.addr_list[i].state;
+
+		if(uip_ds6_if.addr_list[i].isused && (state == ADDR_TENTATIVE || state == ADDR_PREFERRED))
+		{
+			PRINT6ADDR(&uip_ds6_if.addr_list[i].ipaddr);
+			PRINTF(": %d\n", REMOTE_PORT);
+		}
+	}
+}
 
 /* This function is will be passed to COAP_BLOCKING_REQUEST() to handle responses. */
 void
@@ -101,7 +127,7 @@ client_chunk_handler(void *response)
   const uint8_t *chunk;
 
   int len = coap_get_payload(response, &chunk);
-  printf("|%.*s", len, (char *)chunk);
+  printf("%.*s", len, (char *)chunk);
 }
 
 
@@ -125,15 +151,22 @@ PROCESS_THREAD(coap_client_example, ev, data)
   while(1) {
     PROCESS_YIELD();
 
+    int requestURI = 0;
+
     if (etimer_expired(&et)) {
-      printf("--Toggle timer--\n");
+      print_local_addresses();
+      printf("--Toggle timer at %d--\n", TOGGLE_INTERVAL * CLOCK_SECOND);
 
       /* prepare request, TID is set by COAP_BLOCKING_REQUEST() */
-      coap_init_message(request, COAP_TYPE_CON, COAP_POST, 0 );
-      coap_set_header_uri_path(request, service_urls[1]);
+      coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
 
+      coap_set_header_uri_path(request, service_urls[1]);
+      requestURI++;
+
+      /*
       const char msg[] = "Toggle!";
       coap_set_payload(request, (uint8_t *)msg, sizeof(msg)-1);
+      */
 
 
       PRINT6ADDR(&server_ipaddr);
