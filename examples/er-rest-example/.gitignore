@@ -1,0 +1,6 @@
+*.cproject
+*.project
+/er-example-client.iotlab-m3
+/er-example-server.iotlab-m3
+/symbols.c
+/symbols.h
