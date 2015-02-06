@@ -89,6 +89,9 @@ void uip_log(char *msg)
 /*---------------------------------------------------------------------------*/
 void set_rime_addr()
 {
+
+#define IOTLAB_UID_ADDR 0
+#if !(IOTLAB_UID_ADDR)
     /* Company 3 Bytes */
     rimeaddr_node_addr.u8[0] = 0x01;
     rimeaddr_node_addr.u8[1] = 0x23;
@@ -118,6 +121,18 @@ void set_rime_addr()
             uid->uid8[9],
             uid->uid8[10],
             uid->uid8[11]);
+#else
+    memset(&rimeaddr_node_addr, 0, sizeof(rimeaddr_node_addr));
+    uint16_t short_uid = platform_uid();
+    rimeaddr_node_addr.u8[0] = 0x02;
+    rimeaddr_node_addr.u8[6] = 0xff & (short_uid >> 8);
+    rimeaddr_node_addr.u8[7] = 0xff & (short_uid);
+
+    log_debug("Uid: %02x%02x",
+            0xff & (short_uid >> 8),
+            0xff & (short_uid));
+#endif
+
     log_debug("Rime Addr: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
             rimeaddr_node_addr.u8[0],
             rimeaddr_node_addr.u8[1],
@@ -127,6 +142,7 @@ void set_rime_addr()
             rimeaddr_node_addr.u8[5],
             rimeaddr_node_addr.u8[6],
             rimeaddr_node_addr.u8[7]);
+
 }
 /*---------------------------------------------------------------------------*/
 static void

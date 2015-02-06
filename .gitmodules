@@ -1,9 +1,3 @@
 [submodule "tools/mspsim"]
 	path = tools/mspsim
 	url = https://github.com/contiki-os/mspsim.git
-[submodule "apps/kevoree"]
-	path = apps/kevoree
-	url = ../kevoree-contiki.git
-[submodule "examples/kev-rest-example"]
-	path = examples/kev-rest-example
-	url = ../coap-kev.git

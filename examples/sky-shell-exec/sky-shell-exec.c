@@ -59,7 +59,7 @@ PROCESS_THREAD(sky_shell_process, ev, data)
   PROCESS_BEGIN();
 
   serial_shell_init();
-  shell_blink_init();
+  /*shell_blink_init();*/
   shell_file_init();
   shell_coffee_init();
   /*shell_ps_init();*/

@@ -116,10 +116,7 @@ jsonparse_next(struct jsonparse_state *state)
 
   skip_ws(state);
   c = state->json[state->pos];
-  /*printf("c = %c\n", c);*/
   s = jsonparse_get_type(state);
-  /*printf("s = %c\n", s);
-  printf("vtype = %X\n", state->vtype);*/
   state->pos++;
 
   switch(c) {

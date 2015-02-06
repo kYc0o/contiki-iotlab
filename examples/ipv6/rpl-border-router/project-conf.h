@@ -40,7 +40,7 @@
 #endif
 
 #ifndef UIP_CONF_BUFFER_SIZE
-#define UIP_CONF_BUFFER_SIZE    1240
+#define UIP_CONF_BUFFER_SIZE    140
 #endif
 
 #ifndef UIP_CONF_RECEIVE_WINDOW
@@ -53,5 +53,8 @@
 
 #undef SLIP_ARCH_CONF_ENABLE
 #define SLIP_ARCH_CONF_ENABLE 1
+
+//#define RF2XX_TX_POWER PHY_POWER_0dBm
+//#define RF2XX_CHANNEL   11
 
 #endif /* PROJECT_ROUTER_CONF_H_ */

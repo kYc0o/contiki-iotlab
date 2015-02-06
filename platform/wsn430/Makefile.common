@@ -6,6 +6,7 @@ ARCH=spi1.c ds2411.c xmem.c node-id.c sensors.c cfs-coffee.c \
      uart0.c slip_uart0.c uart0-putchar.c
 
 ifdef WITH_CC1100
+$(warning "cc1100 is not compiling for the moment, some files are missing")
 ARCH+= cc1100.c cc1100-arch.c
 CFLAGS += -DWITH_CC1100=1
 endif

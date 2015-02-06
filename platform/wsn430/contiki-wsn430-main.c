@@ -58,7 +58,6 @@
 #include "cfs-coffee-arch.h"
 #include "cfs/cfs-coffee.h"
 #include "sys/autostart.h"
-#include "sys/profile.h"
 
 #if UIP_CONF_ROUTER
 

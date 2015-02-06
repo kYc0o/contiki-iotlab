@@ -243,39 +243,38 @@ relocate_section(int fd,
       addr = (char *)symtab_lookup(name);
       /* ADDED */
       if(addr == NULL) {
-	  	PRINTF("name not found in global: %s\n", name);
-	  	addr = find_local_symbol(fd, name, symtab, symtabsize, strtab);
-	  	PRINTF("found address %p\n", addr);
+	PRINTF("name not found in global: %s\n", name);
+	addr = find_local_symbol(fd, name, symtab, symtabsize, strtab);
+	PRINTF("found address %p\n", addr);
       }
       if(addr == NULL) {
-		if(s.st_shndx == bss.number) {
-		  sect = &bss;
-		} else if(s.st_shndx == data.number) {
-		  sect = &data;
-		} else if(s.st_shndx == rodata.number) {
-		  sect = &rodata;
-		} else if(s.st_shndx == text.number) {
-		  sect = &text;
-		} else {
-		  PRINTF("elfloader unknown name: '%30s'\n", name);
-		  memcpy(elfloader_unknown, name, sizeof(elfloader_unknown));
-		  elfloader_unknown[sizeof(elfloader_unknown) - 1] = 0;
-		  return ELFLOADER_SYMBOL_NOT_FOUND;
-		}
-		printf("\t\tUsing this path to find addr for %s\n", name);
-		addr = sect->address;
-	  }
+	if(s.st_shndx == bss.number) {
+	  sect = &bss;
+	} else if(s.st_shndx == data.number) {
+	  sect = &data;
+	} else if(s.st_shndx == rodata.number) {
+	  sect = &rodata;
+	} else if(s.st_shndx == text.number) {
+	  sect = &text;
 	} else {
-	  if(s.st_shndx == bss.number) {
-		sect = &bss;
-	  } else if(s.st_shndx == data.number) {
-		sect = &data;
-	  } else if(s.st_shndx == rodata.number) {
-		sect = &rodata;
-	  } else if(s.st_shndx == text.number) {
-		sect = &text;
-	  } else {
-		return ELFLOADER_SEGMENT_NOT_FOUND;
+	  PRINTF("elfloader unknown name: '%30s'\n", name);
+	  memcpy(elfloader_unknown, name, sizeof(elfloader_unknown));
+	  elfloader_unknown[sizeof(elfloader_unknown) - 1] = 0;
+	  return ELFLOADER_SYMBOL_NOT_FOUND;
+	}
+	addr = sect->address;
+      }
+    } else {
+      if(s.st_shndx == bss.number) {
+	sect = &bss;
+      } else if(s.st_shndx == data.number) {
+	sect = &data;
+      } else if(s.st_shndx == rodata.number) {
+	sect = &rodata;
+      } else if(s.st_shndx == text.number) {
+	sect = &text;
+      } else {
+	return ELFLOADER_SEGMENT_NOT_FOUND;
       }
       addr = sect->address;
     }
@@ -572,21 +571,10 @@ elfloader_load(int fd)
   memset(bss.address, 0, bsssize);
   seek_read(fd, dataoff, data.address, datasize);
 
-  // show data
-/*
-  uint16_t* roBegin = (uint16_t*)text.address;
-  uint16_t* roEnd = (uint16_t*)(rodata.address + rodatasize);
-  while (roBegin < roEnd) {
-		printf("\tValue at %p is %x\n", roBegin, *roBegin);
-		roBegin++;
-  }
-*/
-
   PRINTF("elfloader: autostart search\n");
   process = (struct process **) find_local_symbol(fd, "autostart_processes", symtaboff, symtabsize, strtaboff);
   if(process != NULL) {
     PRINTF("elfloader: autostart found\n");
-	//printf("The process is here, at address %p, the thread at %p\n", process[0], process[0]->thread);
     elfloader_autostart_processes = process;
     return ELFLOADER_OK;
   } else {

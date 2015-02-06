@@ -47,4 +47,7 @@
 #define WEBSERVER_CONF_CFS_CONNS 2
 #endif
 
+//#define RF2XX_TX_POWER PHY_POWER_0dBm
+//#define RF2XX_CHANNEL   11
+
 #endif /* PROJECT_ROUTER_CONF_H_ */
